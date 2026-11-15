@@ -1,10 +1,9 @@
 'use strict';
 
+const { ORDER: FIX_PRIORITY } = require('./fixes');
+const { PROVIDERS, fastest } = require('./providers');
+
 const SEV_RANK = { bad: 0, warn: 1, info: 2, ok: 3 };
-const FIX_PRIORITY = [
-  'open-portal', 'enable-adapters', 'flush-dns', 'flush-arp', 'renew-ip', 'restart-adapter',
-  'set-dns-cloudflare', 'set-dns-google', 'disable-proxy', 'reset-winsock', 'reset-tcpip',
-];
 
 function parseLink(s) {
   const m = /([\d.]+)\s*([gmk])bps/i.exec(s || '');
@@ -49,8 +48,11 @@ function analyze(r) {
   const latency = avg(inet.map((p) => p.avgMs).filter((x) => x != null));
   const jitter = inet.length ? Math.max(...inet.map((p) => p.jitterMs || 0)) : null;
   const dnsSys = (r.dns || {}).system;
-  const dnsPubList = [r.dns && r.dns.cloudflare, r.dns && r.dns.google].filter(Boolean);
+  const dnsPubList = PROVIDERS.map((p) => r.dns && r.dns[p.id]).filter(Boolean);
   const pubOk = dnsPubList.some((d) => d.ok);
+  const best = fastest(r.dns);
+  // Prefer the benchmark winner; fall back to Cloudflare if there is no race data.
+  const dnsFix = best ? 'set-dns-fastest' : 'set-dns-cloudflare';
   const sysFail = !!(dnsSys && !dnsSys.ok);
   const webOk = !!(r.http && r.http.ok);
   const captive = !!(r.http && r.http.captive);
@@ -129,14 +131,30 @@ function analyze(r) {
 
   // --- DNS ---
   if (sysFail && pubOk) {
-    const googleBetter = dnsPubList.length === 2 && !r.dns.cloudflare.ok && r.dns.google.ok;
-    add('bad', 'DNS is failing', `Names don’t resolve through your DNS servers${r.dnsServers && r.dnsServers.length ? ' (' + r.dnsServers.join(', ') + ')' : ''}, but public DNS works.`, ['flush-dns', googleBetter ? 'set-dns-google' : 'set-dns-cloudflare'], 35);
+    add('bad', 'DNS is failing', `Names don’t resolve through your DNS servers${r.dnsServers && r.dnsServers.length ? ' (' + r.dnsServers.join(', ') + ')' : ''}, but public DNS works.`, ['flush-dns', dnsFix], 35);
   } else if (sysFail && !pubOk && online) {
     add('warn', 'DNS traffic looks blocked', 'The internet answers pings but no DNS server responds. A firewall or VPN may be blocking port 53.', [], 15);
   } else if (dnsSys && dnsSys.ok && dnsSys.ms > 250 && pubOk) {
-    const best = Math.min(...dnsPubList.filter((d) => d.ok).map((d) => d.ms));
-    if (best < dnsSys.ms / 2) add('warn', 'Slow DNS', `Your DNS takes ${dnsSys.ms} ms; public DNS answers in ${best} ms.`, ['set-dns-cloudflare'], 10);
+    if (best && best.ms < dnsSys.ms / 2) add('warn', 'Slow DNS', `Your DNS takes ${dnsSys.ms} ms; ${best.name} answers in ${best.ms} ms.`, [dnsFix], 10);
   }
+
+  // --- clock ---
+  const skew = r.http && r.http.clockSkewSec;
+  if (skew != null && Math.abs(skew) > 120) {
+    const mins = Math.round(Math.abs(skew) / 60);
+    add('warn', 'Your clock is wrong', `Windows’ clock is about ${mins >= 120 ? Math.round(mins / 60) + ' hours' : mins + ' minutes'} ${skew > 0 ? 'ahead' : 'behind'}. Secure (HTTPS) sites reject connections when the time is off.`, ['sync-time'], 20);
+  }
+
+  // --- power saving / VPN ---
+  const flaky = (gw && gw.lossPct > 0) || (inetLoss != null && inetLoss > 0) || (jitter != null && jitter > 40);
+  if (primary && primary.powerSave && flaky) {
+    add('warn', 'Adapter power-saving is on', 'Windows is allowed to switch your network adapter off to save power, which causes drops and lag spikes.', ['disable-power-saving'], 5);
+  }
+  if (onWifi && flaky && (!gw || gw.lossPct > 0 || (jitter != null && jitter > 40))) {
+    if (!fixes.has('restart-adapter')) fixes.set('restart-wifi-service', 'Unstable Wi-Fi');
+  }
+  const vpn = adapters.find((a) => a.virtual && /vpn|wireguard|openvpn|tap-windows|tunnel|nord|proton|express/i.test(`${a.name} ${a.description}`) && /^up$/i.test(a.status || ''));
+  if (vpn) add('info', 'A VPN adapter is active', `“${vpn.name}” may be routing your traffic, which changes speed and latency.`);
 
   // --- web ---
   if (captive) {
@@ -151,7 +169,10 @@ function analyze(r) {
   // --- speed ---
   if (speed != null) {
     if (speed < 1) add('warn', 'Extremely slow download', `Measured about ${speed} Mbps.`, [], 30);
-    else if (speed < 5) add('warn', 'Slow download speed', `Measured about ${speed} Mbps — fine for browsing, rough for video.`, [], 15);
+    else if (speed < 5) {
+      const clean = (inetLoss == null || inetLoss === 0) && (latency == null || latency < 80) && !(onWifi && wifiSignal != null && wifiSignal < 50);
+      add('warn', 'Slow download speed', `Measured about ${speed} Mbps — fine for browsing, rough for video.${clean ? ' Latency and loss are clean, so a throttled TCP setting is worth ruling out.' : ''}`, clean ? ['optimize-tcp'] : [], 15);
+    }
   }
 
   // --- wi-fi ---
@@ -197,14 +218,25 @@ function analyze(r) {
   findings.sort((a, b) => SEV_RANK[a.severity] - SEV_RANK[b.severity]);
   const fixList = [...fixes.entries()]
     .sort((a, b) => FIX_PRIORITY.indexOf(a[0]) - FIX_PRIORITY.indexOf(b[0]))
-    .map(([id, reason]) => ({ id, reason }));
+    .map(([id, reason]) => ({
+      id,
+      reason: id === 'set-dns-fastest' && best
+        ? `${best.name} answered in ${best.ms} ms${dnsSys && dnsSys.ok ? ` (yours: ${dnsSys.ms} ms)` : ' — yours didn’t answer'}`
+        : reason,
+    }));
 
   const top = findings.find((f) => f.severity === 'bad') || findings.find((f) => f.severity === 'warn');
   const summary = top
     ? `${top.title}. ${top.detail}`
     : 'Your connection looks healthy. Nothing needs fixing.';
 
-  return { score, label: labelFor(score, online), online, path: pathNodes, metrics, findings, fixes: fixList, summary };
+  const race = {
+    yours: dnsSys ? { ok: !!dnsSys.ok, ms: dnsSys.ms } : null,
+    providers: PROVIDERS.map((p) => ({ id: p.id, name: p.name, ok: !!(r.dns && r.dns[p.id] && r.dns[p.id].ok), ms: r.dns && r.dns[p.id] ? r.dns[p.id].ms : null })),
+    best: best ? best.id : null,
+  };
+
+  return { score, label: labelFor(score, online), online, path: pathNodes, metrics, findings, fixes: fixList, summary, race };
 }
 
 module.exports = { analyze, FIX_PRIORITY };

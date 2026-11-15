@@ -25,10 +25,37 @@ assert.deepEqual(a.path.map((n) => n.status), ['ok', 'ok', 'ok', 'ok']);
 
 // DNS broken, public works
 a = analyze(base({ dns: { system: { ok: false }, cloudflare: { ok: true, ms: 20 }, google: { ok: true, ms: 25 } }, http: { ok: false, error: 'x' } }));
-assert.ok(ids(a).includes('flush-dns') && ids(a).includes('set-dns-cloudflare'));
+assert.ok(ids(a).includes('flush-dns') && ids(a).includes('set-dns-fastest'));
 assert.ok(!ids(a).includes('set-dns-google'));
+assert.equal(a.race.best, 'cloudflare');
+assert.match(a.fixes.find((f) => f.id === 'set-dns-fastest').reason, /Cloudflare answered in 20 ms/);
 assert.equal(a.path[2].status, 'bad');
 assert.ok(a.score < 75);
+
+// fastest provider is chosen from the race (Quad9 wins here)
+a = analyze(base({ dns: { system: { ok: false }, cloudflare: { ok: true, ms: 40 }, google: { ok: true, ms: 35 }, quad9: { ok: true, ms: 9 }, opendns: { ok: false } }, http: { ok: false } }));
+assert.equal(a.race.best, 'quad9');
+assert.equal(require('../src/providers').fastest({ cloudflare: { ok: true, ms: 40 }, quad9: { ok: true, ms: 9 } }).id, 'quad9');
+
+// slow system DNS but a much faster provider
+a = analyze(base({ dns: { system: { ok: true, ms: 400 }, cloudflare: { ok: true, ms: 15 }, google: { ok: true, ms: 30 } } }));
+assert.ok(a.findings.some((f) => f.title === 'Slow DNS') && ids(a).includes('set-dns-fastest'));
+
+// wrong clock
+a = analyze(base({ http: { ok: true, captive: false, clockSkewSec: 5400 } }));
+assert.ok(ids(a).includes('sync-time'));
+a = analyze(base({ http: { ok: true, captive: false, clockSkewSec: 3 } }));
+assert.ok(!ids(a).includes('sync-time'));
+
+// power-saving only matters when the link is flaky
+a = analyze(base({ adapters: [adapter({ powerSave: true })], ping: { gateway: ping(4, 3), cloudflare: ping(5, 5), google: ping(5, 5) } }));
+assert.ok(ids(a).includes('disable-power-saving'));
+a = analyze(base({ adapters: [adapter({ powerSave: true })] }));
+assert.ok(!ids(a).includes('disable-power-saving'));
+
+// slow download on a clean line suggests TCP auto-tuning
+a = analyze(base({ speed: { mbps: 2.5 } }));
+assert.ok(ids(a).includes('optimize-tcp'));
 
 // no IP (APIPA)
 a = analyze(base({ adapters: [adapter({ ipv4: ['169.254.3.4'] })], ping: {}, dns: { system: { ok: false }, cloudflare: { ok: false }, google: { ok: false } }, http: { ok: false } }));
@@ -80,5 +107,19 @@ assert.throws(() => _test.sanitize(null, local));
 for (const id of Object.keys(CATALOG)) assert.ok(ORDER.includes(id), `${id} missing from ORDER`);
 for (const id of ORDER) assert.ok(CATALOG[id], `${id} missing from CATALOG`);
 assert.ok(_test.buildPrompt(base(), local).length < 8000, 'prompt stays small');
+
+// packaging config: installer only, upgrade-in-place, branded assets present
+const fs = require('node:fs');
+const path = require('node:path');
+const pkg = require('../package.json');
+const targets = JSON.stringify(pkg.build.win.target);
+assert.ok(/nsis/.test(targets) && !/portable/.test(targets), 'installer only, no portable');
+assert.ok(!pkg.build.portable, 'no portable section');
+assert.ok(pkg.build.appId && pkg.build.nsis.guid, 'fixed appId + guid so new setups replace old installs');
+assert.equal(pkg.build.nsis.perMachine, false);
+for (const f of [pkg.build.win.icon, pkg.build.nsis.installerSidebar, pkg.build.nsis.installerHeader, pkg.build.nsis.include]) {
+  assert.ok(fs.existsSync(path.join(__dirname, '..', f)), `missing ${f}`);
+}
+assert.ok(pkg.dependencies['electron-updater'], 'updater is a runtime dependency');
 
 console.log('B-Z self-test: all checks passed');

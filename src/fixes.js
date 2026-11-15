@@ -36,6 +36,31 @@ const CATALOG = {
     desc: 'Disables and re-enables your active adapter.',
     risk: 'low', admin: true, reboot: false, needsAdapter: true,
   },
+  'set-dns-fastest': {
+    title: 'Switch to the fastest DNS',
+    desc: 'Applies whichever public DNS (Cloudflare, Google, Quad9, OpenDNS) answered fastest in the race.',
+    risk: 'medium', admin: true, reboot: false, needsAdapter: true,
+  },
+  'disable-power-saving': {
+    title: 'Stop adapter power-saving',
+    desc: 'Stops Windows from switching your network adapter off to save power — a classic cause of random drops.',
+    risk: 'low', admin: true, reboot: false, needsAdapter: true,
+  },
+  'sync-time': {
+    title: 'Sync system clock',
+    desc: 'Re-syncs your clock with Windows Time. A wrong clock makes secure sites refuse to load.',
+    risk: 'safe', admin: true, reboot: false, needsAdapter: false,
+  },
+  'optimize-tcp': {
+    title: 'Restore TCP auto-tuning',
+    desc: 'Sets TCP receive auto-tuning back to normal, which can unlock slow downloads.',
+    risk: 'low', admin: true, reboot: false, needsAdapter: false,
+  },
+  'restart-wifi-service': {
+    title: 'Restart Wi-Fi service',
+    desc: 'Restarts Windows’ WLAN AutoConfig service to clear a stuck wireless stack.',
+    risk: 'low', admin: true, reboot: false, needsAdapter: false,
+  },
   'set-dns-cloudflare': {
     title: 'Use Cloudflare DNS',
     desc: 'Sets DNS on your active adapter to 1.1.1.1 / 1.0.0.1.',
@@ -70,8 +95,9 @@ const CATALOG = {
 
 /** Order fixes run in (gentle → heavy). */
 const ORDER = [
-  'open-portal', 'enable-adapters', 'flush-dns', 'flush-arp', 'renew-ip', 'restart-adapter',
-  'set-dns-cloudflare', 'set-dns-google', 'reset-dns-auto', 'disable-proxy', 'reset-winsock', 'reset-tcpip',
+  'open-portal', 'sync-time', 'enable-adapters', 'disable-power-saving', 'restart-wifi-service', 'flush-dns', 'flush-arp',
+  'renew-ip', 'restart-adapter', 'set-dns-fastest', 'set-dns-cloudflare', 'set-dns-google', 'reset-dns-auto',
+  'disable-proxy', 'optimize-tcp', 'reset-winsock', 'reset-tcpip',
 ];
 
 const clean = (s) =>
@@ -122,6 +148,31 @@ const runners = {
       { BZ_ADAPTER: adapter },
       'Adapter restarted.'
     ),
+  'set-dns-fastest': ({ adapter, fastest }) => {
+    if (!fastest) return { ok: false, output: 'No DNS race result — run a scan first.' };
+    return psFix(
+      "Set-DnsClientServerAddress -InterfaceAlias $env:BZ_ADAPTER -ServerAddresses @($env:BZ_DNS1,$env:BZ_DNS2); Clear-DnsClientCache; 'DNS set to ' + $env:BZ_DNSNAME + ' on ' + $env:BZ_ADAPTER",
+      { BZ_ADAPTER: adapter, BZ_DNS1: fastest.servers[0], BZ_DNS2: fastest.servers[1], BZ_DNSNAME: fastest.name },
+      `DNS set to ${fastest.name}.`
+    );
+  },
+  'disable-power-saving': ({ adapter }) =>
+    psFix(
+      "Set-NetAdapterPowerManagement -Name $env:BZ_ADAPTER -AllowComputerToTurnOffDevice Disabled; 'Power-saving turned off for ' + $env:BZ_ADAPTER",
+      { BZ_ADAPTER: adapter },
+      'Adapter power-saving turned off.'
+    ),
+  'sync-time': async () => {
+    await run('net', ['start', 'w32time']); // fine if it is already running
+    const r = await run('w32tm', ['/resync', '/force'], { timeout: 30000 });
+    return { ok: r.code === 0, output: r.code === 0 ? 'Clock synced.' : snip(clean(r.stdout || r.stderr)) };
+  },
+  'optimize-tcp': async () => {
+    const r = await run('netsh', ['int', 'tcp', 'set', 'global', 'autotuninglevel=normal']);
+    return { ok: r.code === 0, output: r.code === 0 ? 'TCP auto-tuning set to normal.' : snip(clean(r.stdout || r.stderr)) };
+  },
+  'restart-wifi-service': () =>
+    psFix("Restart-Service -Name WlanSvc -Force; Start-Sleep 3; 'Wi-Fi service restarted.'", {}, 'Wi-Fi service restarted.'),
   'set-dns-cloudflare': ({ adapter }) =>
     psFix(
       "Set-DnsClientServerAddress -InterfaceAlias $env:BZ_ADAPTER -ServerAddresses @('1.1.1.1','1.0.0.1'); Clear-DnsClientCache; 'DNS set to Cloudflare on ' + $env:BZ_ADAPTER",

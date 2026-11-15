@@ -3,7 +3,8 @@ const { app, BrowserWindow, ipcMain, shell, safeStorage, net, Menu } = require('
 const path = require('node:path');
 const fs = require('node:fs');
 
-const { collect } = require('./src/diagnostics');
+const { collect, ping } = require('./src/diagnostics');
+const { fastest } = require('./src/providers');
 const { analyze } = require('./src/analyze');
 const { applyFix, CATALOG, ORDER } = require('./src/fixes');
 const { askClaude, friendlyError, DEFAULT_MODEL } = require('./src/ai');
@@ -54,10 +55,10 @@ const publicCatalog = () =>
 function createWindow() {
   Menu.setApplicationMenu(null);
   win = new BrowserWindow({
-    width: 1120,
-    height: 740,
-    minWidth: 920,
-    minHeight: 640,
+    width: 1180,
+    height: 780,
+    minWidth: 960,
+    minHeight: 660,
     backgroundColor: '#09090a',
     title: 'B-Z',
     icon: path.join(__dirname, 'build', 'icon.png'),
@@ -77,7 +78,33 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
-app.whenReady().then(createWindow);
+/* ---------- auto-update (GitHub Releases). Never allowed to break the app. ---------- */
+let updater = null;
+function setupUpdater() {
+  if (!app.isPackaged) return;
+  try {
+    ({ autoUpdater: updater } = require('electron-updater'));
+    updater.autoDownload = true;
+    updater.autoInstallOnAppQuit = true;
+    const send = (p) => {
+      if (win && !win.isDestroyed()) win.webContents.send('update:status', p);
+    };
+    updater.on('update-available', (i) => send({ state: 'downloading', version: i.version }));
+    updater.on('update-downloaded', (i) => send({ state: 'ready', version: i.version }));
+    updater.on('error', () => {}); // offline, no release yet, rate-limited... all fine
+    setTimeout(() => updater.checkForUpdates().catch(() => {}), 8000);
+  } catch {
+    updater = null;
+  }
+}
+ipcMain.handle('update:install', () => {
+  if (updater) updater.quitAndInstall(false, true);
+});
+
+app.whenReady().then(() => {
+  createWindow();
+  setupUpdater();
+});
 app.on('second-instance', () => {
   if (win) {
     if (win.isMinimized()) win.restore();
@@ -133,6 +160,7 @@ const stripPrivate = (report) => ({
 ipcMain.handle('scan:start', async (e) => {
   if (busy) return { error: 'A scan is already running.' };
   busy = true;
+  stopMonitor(); // keep the live pinger from skewing the scan
   const send = (ch, p) => {
     if (!e.sender.isDestroyed()) e.sender.send(ch, p);
   };
@@ -171,6 +199,41 @@ ipcMain.handle('scan:start', async (e) => {
   }
 });
 
+/* ---------- live pulse: 1 Hz ping to router + internet ---------- */
+let monitor = null;
+function stopMonitor() {
+  if (monitor) clearInterval(monitor.timer);
+  monitor = null;
+}
+ipcMain.handle('monitor:start', (e) => {
+  if (monitor) return true;
+  const gateway = last && last.report ? last.report.gateway : null;
+  let inFlight = false;
+  const timer = setInterval(async () => {
+    if (inFlight || e.sender.isDestroyed()) return;
+    inFlight = true;
+    try {
+      const [net1, rt] = await Promise.all([ping('1.1.1.1', 1), gateway ? ping(gateway, 1) : Promise.resolve(null)]);
+      if (!e.sender.isDestroyed()) {
+        e.sender.send('monitor:tick', {
+          t: Date.now(),
+          internet: net1.received ? (net1.avgMs ?? null) : null,
+          router: rt ? (rt.received ? (rt.avgMs ?? null) : null) : undefined,
+        });
+      }
+    } finally {
+      inFlight = false;
+    }
+  }, 1000);
+  monitor = { timer };
+  return true;
+});
+ipcMain.handle('monitor:stop', () => {
+  stopMonitor();
+  return true;
+});
+app.on('before-quit', stopMonitor);
+
 ipcMain.handle('fix:apply', async (e, ids) => {
   if (!Array.isArray(ids)) return [];
   const send = (ch, p) => {
@@ -181,7 +244,7 @@ ipcMain.handle('fix:apply', async (e, ids) => {
 
   const names = last ? last.report.adapters.map((a) => a.name) : [];
   const adapter = last && names.includes(last.report.primary) ? last.report.primary : null;
-  const ctx = { adapter, admin: await isAdmin(), shell };
+  const ctx = { adapter, admin: await isAdmin(), shell, fastest: last ? fastest(last.report.dns) : null };
 
   const results = [];
   for (const id of wanted) {

@@ -7,17 +7,20 @@
   <title>B-Z</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body data-state="idle" data-tone="ok">
-  <div class="cur" id="cur-ring"><i></i></div>
-  <div class="cur" id="cur-dot"><i></i></div>
+<body data-state="idle" data-tone="ok" data-accent="lime" data-tab="report" data-has="0">
+  <canvas id="bg" aria-hidden="true"></canvas>
   <div class="glow"></div>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="cur" id="cur-ring"><i></i><em></em></div>
+  <div class="cur" id="cur-dot"><i></i></div>
 
   <header class="bar">
-    <div class="brand" aria-label="B-Z">B<span>&mdash;</span>Z</div>
+    <div class="brand"><b aria-label="B-Z">B<span>&mdash;</span>Z</b><small id="ver"></small></div>
     <div class="bar-right">
+      <button class="pill update" id="update-pill" data-cursor="update" hidden>Update</button>
       <span class="pill" id="ai-pill">AI off</span>
       <span class="pill" id="admin-pill">&nbsp;</span>
-      <button class="icon-btn" id="btn-settings" aria-label="Settings" title="Settings">
+      <button class="icon-btn" id="btn-settings" data-cursor="settings" aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
       </button>
     </div>
@@ -25,10 +28,11 @@
 
   <main>
     <section class="stage">
-      <div class="ring-wrap">
+      <div class="ring-wrap" id="ring-wrap">
         <div class="sonar"></div><div class="sonar s2"></div>
         <svg class="ring" viewBox="0 0 280 280" aria-hidden="true">
           <circle class="inner" cx="140" cy="140" r="96"/>
+          <circle class="inner faint" cx="140" cy="140" r="80"/>
           <g id="ticks"></g>
         </svg>
         <div class="ring-core">
@@ -54,33 +58,66 @@
 
       <ol class="steps" id="steps" aria-live="polite"></ol>
 
-      <button class="btn primary" id="btn-scan"><span id="scan-text">Scan</span></button>
+      <div class="actions">
+        <button class="btn primary magnetic" id="btn-scan" data-cursor="scan"><span id="scan-text">Scan</span></button>
+        <button class="btn ghost magnetic" id="btn-live" data-cursor="live"><i class="live-dot"></i>Live pulse</button>
+      </div>
+
+      <div class="history" id="history" title="Recent scans"></div>
     </section>
 
-    <section class="report" id="report" aria-live="polite">
+    <section class="report" id="report">
       <div class="report-inner">
-        <div class="summary">
-          <div class="summary-top">
-            <span class="badge" id="source-badge">Local engine</span>
-            <span class="delta" id="delta" hidden></span>
+        <nav class="tabs" role="tablist">
+          <button role="tab" class="tab on" data-tab="report" data-cursor="view">Report</button>
+          <button role="tab" class="tab" data-tab="live" data-cursor="view">Live</button>
+        </nav>
+
+        <div class="pane" id="tab-report">
+          <div id="report-empty" class="empty-state">Run a scan to see findings and fixes.</div>
+          <div id="report-body">
+            <div class="summary rise">
+              <div class="summary-top">
+                <span class="badge" id="source-badge">Built-in rules</span>
+                <span class="delta" id="delta" hidden></span>
+              </div>
+              <p id="summary-text"></p>
+              <p class="note" id="ai-note" hidden></p>
+            </div>
+
+            <div class="metrics" id="metrics"></div>
+
+            <h2>DNS race</h2>
+            <div class="race spot" id="race"></div>
+
+            <h2>Findings</h2>
+            <ul class="findings" id="findings"></ul>
+
+            <div id="fix-section">
+              <h2>Fixes</h2>
+              <ul class="fixes" id="fixes"></ul>
+              <div class="fix-actions">
+                <button class="btn primary small magnetic" id="btn-apply" data-cursor="fix">Apply fixes</button>
+                <span class="hint" id="fix-hint"></span>
+              </div>
+              <div class="progress" id="fix-progress" hidden><i></i></div>
+              <ul class="log" id="log"></ul>
+            </div>
           </div>
-          <p id="summary-text"></p>
-          <p class="note" id="ai-note" hidden></p>
         </div>
 
-        <div class="metrics" id="metrics"></div>
-
-        <h2>Findings</h2>
-        <ul class="findings" id="findings"></ul>
-
-        <div id="fix-section">
-          <h2>Fixes</h2>
-          <ul class="fixes" id="fixes"></ul>
-          <div class="fix-actions">
-            <button class="btn primary small" id="btn-apply">Apply fixes</button>
-            <span class="hint" id="fix-hint"></span>
+        <div class="pane" id="tab-live">
+          <div class="live-top">
+            <div class="big"><b id="lv-now">&mdash;</b><small>ms</small><span>Internet &middot; 1.1.1.1</span></div>
+            <div class="lv-stats">
+              <div><b id="lv-avg">&mdash;</b><span>avg</span></div>
+              <div><b id="lv-jit">&mdash;</b><span>jitter</span></div>
+              <div><b id="lv-loss">&mdash;</b><span>loss</span></div>
+              <div><b id="lv-rt">&mdash;</b><span>router</span></div>
+            </div>
           </div>
-          <ul class="log" id="log"></ul>
+          <canvas id="live-canvas" class="spot"></canvas>
+          <p class="hint">One ping per second. Walk to another room, unplug the cable, toggle Wi-Fi &mdash; watch the line react. Red ticks are lost packets.</p>
         </div>
       </div>
     </section>
@@ -89,12 +126,12 @@
   <aside class="drawer" id="drawer" aria-hidden="true">
     <div class="drawer-head">
       <h3>Settings</h3>
-      <button class="icon-btn" id="btn-close" aria-label="Close settings">&times;</button>
+      <button class="icon-btn" id="btn-close" aria-label="Close settings" data-cursor="close">&times;</button>
     </div>
     <label class="field">
       <span>Anthropic API key</span>
       <input type="password" id="in-key" placeholder="sk-ant-&hellip;" autocomplete="off" spellcheck="false" />
-      <small id="key-state">Adds AI analysis. Stored encrypted on this PC. Without it, B-Z uses its built-in rules.</small>
+      <small>Adds AI analysis. Stored encrypted on this PC. Without it, B-Z uses its built-in rules.</small>
     </label>
     <div class="row-links">
       <button class="link" id="btn-getkey">Get a key</button>
@@ -104,16 +141,27 @@
       <span>Model</span>
       <input type="text" id="in-model" spellcheck="false" />
     </label>
+    <div class="field">
+      <span>Accent</span>
+      <div class="swatches" id="swatches">
+        <button data-accent="lime" data-cursor="theme" aria-label="Lime"></button>
+        <button data-accent="cyan" data-cursor="theme" aria-label="Cyan"></button>
+        <button data-accent="violet" data-cursor="theme" aria-label="Violet"></button>
+        <button data-accent="coral" data-cursor="theme" aria-label="Coral"></button>
+        <button data-accent="pink" data-cursor="theme" aria-label="Pink"></button>
+      </div>
+    </div>
     <label class="toggle">
       <input type="checkbox" id="in-verify" />
       <span class="box"></span>
       <span>Re-scan automatically after fixing</span>
     </label>
     <p class="fine">When AI is on, a trimmed scan report (adapter names, IPs, ping and DNS results &mdash; no MAC addresses) is sent to the Anthropic API. The AI can only choose from B-Z&rsquo;s fixed list of fixes, and nothing runs until you press Apply.</p>
-    <button class="btn primary small" id="btn-save">Save</button>
+    <button class="btn primary small" id="btn-save" data-cursor="save">Save</button>
   </aside>
 
   <div class="toast" id="toast" role="status"></div>
+  <script src="fx.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

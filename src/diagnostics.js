@@ -2,6 +2,7 @@
 const os = require('node:os');
 const dns = require('node:dns');
 const { run, ps, isWin, withTimeout } = require('./util');
+const { PROVIDERS } = require('./providers');
 
 const HOST = 'www.microsoft.com';
 
@@ -10,7 +11,7 @@ const HOST = 'www.microsoft.com';
 const SYSTEM_SCRIPT = `
 $ErrorActionPreference='SilentlyContinue'
 $cfg = @(Get-NetIPConfiguration | ForEach-Object { [pscustomobject]@{ name=$_.InterfaceAlias; description=$_.InterfaceDescription; ipv4=@($_.IPv4Address | ForEach-Object { $_.IPAddress }); gateway=[string]$_.IPv4DefaultGateway.NextHop; dns=@($_.DNSServer | Where-Object { $_.AddressFamily -eq 2 } | ForEach-Object { $_.ServerAddresses }) } })
-$phys = @(Get-NetAdapter -Physical | ForEach-Object { [pscustomobject]@{ name=$_.Name; description=$_.InterfaceDescription; status=[string]$_.Status; linkSpeed=[string]$_.LinkSpeed; media=[string]$_.PhysicalMediaType } })
+$phys = @(Get-NetAdapter -Physical | ForEach-Object { [pscustomobject]@{ name=$_.Name; description=$_.InterfaceDescription; status=[string]$_.Status; linkSpeed=[string]$_.LinkSpeed; media=[string]$_.PhysicalMediaType; powerSave=([string](Get-NetAdapterPowerManagement -Name $_.Name).AllowComputerToTurnOffDevice -eq 'Enabled') } })
 $route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object { $_.RouteMetric + $_.InterfaceMetric } | Select-Object -First 1
 $ie = Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings'
 $proxy = [pscustomobject]@{ enabled=([int]$ie.ProxyEnable -eq 1); server=[string]$ie.ProxyServer }
@@ -42,6 +43,7 @@ async function readSystemWindows() {
       status: p.status,
       linkSpeed: p.linkSpeed,
       media: p.media,
+      powerSave: !!p.powerSave,
       virtual: false,
       ipv4: arr(c.ipv4),
       gateway: c.gateway || null,
@@ -155,7 +157,12 @@ async function webCheck(fetchImpl) {
     const res = await withTimeout(fetchImpl('http://www.msftconnecttest.com/connecttest.txt', { cache: 'no-store' }), 7000);
     const body = (await res.text()).trim();
     const expected = body === 'Microsoft Connect Test';
-    return { ok: res.ok && expected, status: res.status, ms: Date.now() - t, captive: !expected && res.status < 400 };
+    const out = { ok: res.ok && expected, status: res.status, ms: Date.now() - t, captive: !expected && res.status < 400 };
+    const dateHdr = res.headers && res.headers.get && res.headers.get('date');
+    const server = dateHdr ? Date.parse(dateHdr) : NaN;
+    // Only trust the clock comparison from the genuine Microsoft response, not a captive-portal page.
+    if (expected && Number.isFinite(server)) out.clockSkewSec = Math.round((Date.now() - server) / 1000);
+    return out;
   } catch (e1) {
     try {
       const t2 = Date.now();
@@ -240,12 +247,12 @@ async function collect({ fetchImpl = globalThis.fetch, onStep = () => {} } = {})
       report.ping.google = g;
     }),
     step('dns', async () => {
-      const [system, cloudflare, google] = await Promise.all([
+      const [system, ...rest] = await Promise.all([
         timeDns(() => dns.promises.lookup(HOST, { family: 4 })),
-        viaServer('1.1.1.1'),
-        viaServer('8.8.8.8'),
+        ...PROVIDERS.map((p) => viaServer(p.servers[0])),
       ]);
-      report.dns = { system, cloudflare, google };
+      report.dns = { system };
+      PROVIDERS.forEach((p, i) => { report.dns[p.id] = rest[i]; });
     }),
   ]);
 

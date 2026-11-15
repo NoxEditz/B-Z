@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('bz', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (p) => ipcRenderer.invoke('settings:set', p),
   openConsole: () => ipcRenderer.invoke('app:open', 'https://console.anthropic.com/'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdate: (cb) => on('update:status', cb),
+  monitorStart: () => ipcRenderer.invoke('monitor:start'),
+  monitorStop: () => ipcRenderer.invoke('monitor:stop'),
+  onMonitorTick: (cb) => on('monitor:tick', cb),
   onScanStep: (cb) => on('scan:step', cb),
   onFixStep: (cb) => on('fix:step', cb),
 });
