@@ -59,11 +59,11 @@ function createWindow() {
     height: 780,
     minWidth: 960,
     minHeight: 660,
-    backgroundColor: '#09090a',
+    backgroundColor: '#060608',
     title: 'B-Z',
     icon: path.join(__dirname, 'build', 'icon.png'),
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#09090a', symbolColor: '#ecebe6', height: 44 },
+    titleBarOverlay: { color: '#060608', symbolColor: '#f5f4f8', height: 44 },
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

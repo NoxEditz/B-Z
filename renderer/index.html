@@ -4,24 +4,50 @@
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>B-Z</title>
+  <title>B-Z Network Doctor</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body data-state="idle" data-tone="ok" data-accent="lime" data-tab="report" data-has="0">
+<body data-state="idle" data-tone="ok" data-accent="crimson" data-tab="report" data-has="0">
   <canvas id="bg" aria-hidden="true"></canvas>
-  <div class="glow"></div>
+  <div class="laser-mesh-glow"></div>
   <canvas id="fx" aria-hidden="true"></canvas>
   <div class="cur" id="cur-ring"><i></i><em></em></div>
   <div class="cur" id="cur-dot"><i></i></div>
 
   <header class="bar">
-    <div class="brand"><b aria-label="B-Z">B<span>&mdash;</span>Z</b><small id="ver"></small></div>
+    <div class="brand">
+      <div class="brand-badge">
+        <svg class="brand-svg" viewBox="0 0 32 32" width="24" height="24" fill="none">
+          <polygon points="16,2 29,8 29,24 16,30 3,24 3,8" stroke="var(--tone)" stroke-width="2" fill="color-mix(in srgb, var(--tone) 16%, transparent)"/>
+          <path d="M10 11h5a2.8 2.8 0 0 1 0 5h-5m0 0h5.5a3.2 3.2 0 0 1 0 6H10m0-11v11" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+          <path d="M19 11h5l-5 10h5" stroke="var(--tone)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <b>B<span class="laser-dash">&mdash;</span>Z</b>
+        <span class="brand-sub">NET DOCTOR</span>
+      </div>
+      <small id="ver"></small>
+    </div>
+
     <div class="bar-right">
-      <button class="pill update" id="update-pill" data-cursor="update" hidden>Update</button>
-      <span class="pill" id="ai-pill">AI off</span>
-      <span class="pill" id="admin-pill">&nbsp;</span>
+      <button class="pill update" id="update-pill" data-cursor="update" hidden>
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v9m-3.5-3.5L8 11l3.5-3.5M2 14h12"/></svg>
+        <span>Update</span>
+      </button>
+
+      <span class="pill" id="ai-pill">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="10" height="10" rx="2"/><circle cx="8" cy="8" r="1.8" fill="currentColor"/><path d="M8 1v2m0 10v2M1 8h2m10 0h2"/></svg>
+        <span id="ai-pill-text">AI off</span>
+      </span>
+
+      <span class="pill" id="admin-pill">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 1.5l6 2.5v5c0 3.5-2.5 5.5-6 6.5-3.5-1-6-3-6-6.5V4l6-2.5z"/><path d="M6 8l1.5 1.5 3-3"/></svg>
+        <span id="admin-pill-text">&nbsp;</span>
+      </span>
+
       <button class="icon-btn" id="btn-settings" data-cursor="settings" aria-label="Settings" title="Settings">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>
   </header>
@@ -29,77 +55,195 @@
   <main>
     <section class="stage">
       <div class="ring-wrap" id="ring-wrap">
-        <div class="sonar"></div><div class="sonar s2"></div>
+        <div class="sonar"></div>
+        <div class="sonar s2"></div>
+        <div class="ring-hud-bracket b-tl"></div>
+        <div class="ring-hud-bracket b-br"></div>
         <svg class="ring" viewBox="0 0 280 280" aria-hidden="true">
-          <circle class="inner" cx="140" cy="140" r="96"/>
-          <circle class="inner faint" cx="140" cy="140" r="80"/>
+          <circle class="inner faint" cx="140" cy="140" r="102"/>
+          <circle class="inner" cx="140" cy="140" r="92"/>
+          <circle class="inner sub" cx="140" cy="140" r="76"/>
           <g id="ticks"></g>
+          <line id="radar-sweep" x1="140" y1="140" x2="140" y2="40" stroke="var(--tone)" stroke-width="2" stroke-linecap="round"/>
         </svg>
         <div class="ring-core">
-          <div class="score" id="score">&mdash;</div>
-          <div class="label" id="label">Ready</div>
+          <div class="score-badge-wrap">
+            <div class="score" id="score">&mdash;</div>
+            <div class="score-unit" id="score-unit">/100</div>
+          </div>
+          <div class="label-wrap">
+            <span class="label-dot"></span>
+            <span class="label" id="label">Ready</span>
+          </div>
         </div>
       </div>
 
-      <div class="path" id="path" aria-label="Connection path">
-        <div class="node" data-id="pc"><i></i><span>This PC</span></div>
-        <div class="seg"></div>
-        <div class="node" data-id="router"><i></i><span>Router</span></div>
-        <div class="seg"></div>
-        <div class="node" data-id="dns"><i></i><span>DNS</span></div>
-        <div class="seg"></div>
-        <div class="node" data-id="internet"><i></i><span>Internet</span></div>
+      <div class="path" id="path" aria-label="Connection topology">
+        <div class="node" data-id="pc" title="This PC">
+          <div class="node-icon-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="14" height="10" rx="2"/>
+              <path d="M6 17h6M9 13v4"/>
+              <rect x="18" y="5" width="4" height="14" rx="1"/>
+              <circle cx="20" cy="8" r="0.8" fill="currentColor"/>
+              <line x1="20" y1="12" x2="20" y2="15"/>
+            </svg>
+            <i class="node-pip"></i>
+          </div>
+          <span>This PC</span>
+        </div>
+
+        <div class="seg"><i class="conduit-pulse"></i></div>
+
+        <div class="node" data-id="router" title="Gateway / Router">
+          <div class="node-icon-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="13" width="20" height="7" rx="2"/>
+              <path d="M6 13V6m6 7V4m6 7V6"/>
+              <circle cx="6" cy="16.5" r="0.9" fill="currentColor"/>
+              <circle cx="10" cy="16.5" r="0.9" fill="currentColor"/>
+              <circle cx="14" cy="16.5" r="0.9" fill="currentColor"/>
+              <circle cx="18" cy="16.5" r="0.9" fill="currentColor"/>
+              <path d="M10 2.5a4 4 0 0 1 4 0" stroke-width="1.4"/>
+            </svg>
+            <i class="node-pip"></i>
+          </div>
+          <span>Router</span>
+        </div>
+
+        <div class="seg"><i class="conduit-pulse"></i></div>
+
+        <div class="node" data-id="dns" title="DNS Resolver">
+          <div class="node-icon-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="5" rx="8" ry="2.8"/>
+              <path d="M4 5v5.5c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8V5"/>
+              <path d="M4 10.5v5.5c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8v-5.5"/>
+              <circle cx="7.5" cy="10.5" r="0.8" fill="currentColor"/>
+              <circle cx="7.5" cy="16" r="0.8" fill="currentColor"/>
+              <path d="M14 16l2-2.5h2l-2 2.5 2 2.5h-2z" fill="currentColor" stroke="none"/>
+            </svg>
+            <i class="node-pip"></i>
+          </div>
+          <span>DNS</span>
+        </div>
+
+        <div class="seg"><i class="conduit-pulse"></i></div>
+
+        <div class="node" data-id="internet" title="Global Web">
+          <div class="node-icon-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M3.5 9h17M3.5 15h17"/>
+              <path d="M12 3a13.5 13.5 0 0 0 0 18M12 3a13.5 13.5 0 0 1 0 18"/>
+              <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+            </svg>
+            <i class="node-pip"></i>
+          </div>
+          <span>Internet</span>
+        </div>
       </div>
 
       <div class="hero-text">
         <h1 id="headline">Your connection, diagnosed.</h1>
-        <p id="subline">B-Z checks your adapters, router, DNS and the road to the web &mdash; then repairs what&rsquo;s broken.</p>
+        <p id="subline">B-Z checks adapters, router gateways, DNS latency and web routes &mdash; then repairs what&rsquo;s broken.</p>
       </div>
 
       <ol class="steps" id="steps" aria-live="polite"></ol>
 
       <div class="actions">
-        <button class="btn primary magnetic" id="btn-scan" data-cursor="scan"><span id="scan-text">Scan</span></button>
-        <button class="btn ghost magnetic" id="btn-live" data-cursor="live"><i class="live-dot"></i>Live pulse</button>
+        <button class="btn primary magnetic" id="btn-scan" data-cursor="scan">
+          <svg class="btn-ic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="10" cy="10" r="7"/>
+            <path d="M10 3a7 7 0 0 1 7 7"/>
+            <circle cx="10" cy="10" r="2.5" fill="currentColor"/>
+          </svg>
+          <span id="scan-text">Scan Network</span>
+        </button>
+
+        <button class="btn ghost magnetic" id="btn-live" data-cursor="live">
+          <span class="live-beacon"><i class="live-dot"></i><i class="live-wave"></i></span>
+          <svg class="btn-ic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 10h3l2.5-6 4 12 3-8 2 4h3.5"/>
+          </svg>
+          <span>Live Pulse</span>
+        </button>
       </div>
 
-      <div class="history" id="history" title="Recent scans"></div>
+      <div class="history-wrap">
+        <span class="history-label">Past Scans</span>
+        <div class="history" id="history" title="Recent scans"></div>
+      </div>
     </section>
 
     <section class="report" id="report">
       <div class="report-inner">
         <nav class="tabs" role="tablist">
-          <button role="tab" class="tab on" data-tab="report" data-cursor="view">Report</button>
-          <button role="tab" class="tab" data-tab="live" data-cursor="view">Live</button>
+          <button role="tab" class="tab on" data-tab="report" data-cursor="view">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="2" width="10" height="12" rx="2"/><path d="M6 6h4M6 9h4M6 12h2"/></svg>
+            <span>Diagnostic Report</span>
+          </button>
+          <button role="tab" class="tab" data-tab="live" data-cursor="view">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 8h2.5l2-4.5 3 9 2.5-6.5 1.5 3.5H15"/></svg>
+            <span>Live Monitor</span>
+          </button>
         </nav>
 
         <div class="pane" id="tab-report">
-          <div id="report-empty" class="empty-state">Run a scan to see findings and fixes.</div>
+          <div id="report-empty" class="empty-state">
+            <svg class="empty-icon" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 3"/>
+            </svg>
+            <span>Run a scan to see network telemetry, diagnostics, and instant automated fixes.</span>
+          </div>
+
           <div id="report-body">
             <div class="summary rise">
               <div class="summary-top">
-                <span class="badge" id="source-badge">Built-in rules</span>
+                <span class="badge" id="source-badge">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="10" height="10" rx="2"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><path d="M8 1v2m0 10v2M1 8h2m10 0h2"/></svg>
+                  <span id="source-badge-text">Built-in rules</span>
+                </span>
                 <span class="delta" id="delta" hidden></span>
               </div>
               <p id="summary-text"></p>
               <p class="note" id="ai-note" hidden></p>
             </div>
 
+            <div class="section-title">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l2.5 2.5"/></svg>
+              <span>TELEMETRY METRICS</span>
+            </div>
             <div class="metrics" id="metrics"></div>
 
-            <h2>DNS race</h2>
+            <div class="section-title">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 13l4-8 4 5 4-7"/><circle cx="14" cy="3" r="1.5" fill="currentColor"/></svg>
+              <span>DNS RESOLUTION RACE</span>
+            </div>
             <div class="race spot" id="race"></div>
 
-            <h2>Findings</h2>
+            <div class="section-title">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="8,1 15,14 1,14"/><path d="M8 6v4m0 2v.5"/></svg>
+              <span>DIAGNOSTIC FINDINGS</span>
+            </div>
             <ul class="findings" id="findings"></ul>
 
             <div id="fix-section">
-              <h2>Fixes</h2>
+              <div class="section-title">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 10.3l-2.4-2.4a4.5 4.5 0 0 0-5.6-.6L4 4.6a1.5 1.5 0 0 0-2.1 2.1l2.7 2.7a4.5 4.5 0 0 0 .6 5.6l2.4 2.4a1.5 1.5 0 0 0 2.1-2.1l-1-1 2.5-2.5 1 1a1.5 1.5 0 0 0 2.5-2.5z"/></svg>
+                <span>RECOMMENDED FIXES</span>
+              </div>
               <ul class="fixes" id="fixes"></ul>
+
               <div class="fix-actions">
-                <button class="btn primary small magnetic" id="btn-apply" data-cursor="fix">Apply fixes</button>
+                <button class="btn primary small magnetic" id="btn-apply" data-cursor="fix">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 1L3 9h5l-1 6 6-8h-5z"/></svg>
+                  <span id="btn-apply-text">Apply fixes</span>
+                </button>
                 <span class="hint" id="fix-hint"></span>
               </div>
+
               <div class="progress" id="fix-progress" hidden><i></i></div>
               <ul class="log" id="log"></ul>
             </div>
@@ -108,16 +252,43 @@
 
         <div class="pane" id="tab-live">
           <div class="live-top">
-            <div class="big"><b id="lv-now">&mdash;</b><small>ms</small><span>Internet &middot; 1.1.1.1</span></div>
+            <div class="big">
+              <div class="big-val"><b id="lv-now">&mdash;</b><small>ms</small></div>
+              <div class="big-sub">
+                <span class="live-ping-beacon"></span>
+                <span>Active Target: Cloudflare Edge (1.1.1.1)</span>
+              </div>
+            </div>
+
             <div class="lv-stats">
-              <div><b id="lv-avg">&mdash;</b><span>avg</span></div>
-              <div><b id="lv-jit">&mdash;</b><span>jitter</span></div>
-              <div><b id="lv-loss">&mdash;</b><span>loss</span></div>
-              <div><b id="lv-rt">&mdash;</b><span>router</span></div>
+              <div class="stat-box">
+                <span class="stat-lbl">AVG LATENCY</span>
+                <b id="lv-avg">&mdash;</b>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">JITTER</span>
+                <b id="lv-jit">&mdash;</b>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">PACKET LOSS</span>
+                <b id="lv-loss">&mdash;</b>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">ROUTER PING</span>
+                <b id="lv-rt">&mdash;</b>
+              </div>
             </div>
           </div>
-          <canvas id="live-canvas" class="spot"></canvas>
-          <p class="hint">One ping per second. Walk to another room, unplug the cable, toggle Wi-Fi &mdash; watch the line react. Red ticks are lost packets.</p>
+
+          <div class="canvas-wrap spot">
+            <canvas id="live-canvas"></canvas>
+            <div class="canvas-hud-grid"></div>
+          </div>
+
+          <div class="live-hint-bar">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="7"/><path d="M8 5v4m0 2.5v.5"/></svg>
+            <p class="hint">One ping per second real-time telemetry. Unplug cables or toggle Wi-Fi to observe line response. Red vertical markers denote dropped packets.</p>
+          </div>
         </div>
       </div>
     </section>
@@ -125,39 +296,57 @@
 
   <aside class="drawer" id="drawer" aria-hidden="true">
     <div class="drawer-head">
-      <h3>Settings</h3>
-      <button class="icon-btn" id="btn-close" aria-label="Close settings" data-cursor="close">&times;</button>
+      <div class="drawer-title-group">
+        <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="var(--tone)" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="3"/><path d="M10 2v2m0 12v2M2 10h2m12 0h2"/></svg>
+        <h3>Settings</h3>
+      </div>
+      <button class="icon-btn" id="btn-close" aria-label="Close settings" data-cursor="close">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </button>
     </div>
+
     <label class="field">
       <span>Anthropic API key</span>
       <input type="password" id="in-key" placeholder="sk-ant-&hellip;" autocomplete="off" spellcheck="false" />
-      <small>Adds AI analysis. Stored encrypted on this PC. Without it, B-Z uses its built-in rules.</small>
+      <small>Unlocks intelligent AI diagnostics. Stored encrypted on this PC via Windows DPAPI. Without it, B-Z uses its built-in rules.</small>
     </label>
+
     <div class="row-links">
-      <button class="link" id="btn-getkey">Get a key</button>
-      <button class="link" id="btn-clearkey" hidden>Remove key</button>
+      <button class="link" id="btn-getkey">
+        <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12l10-10m0 0H5m7 0v7"/></svg>
+        <span>Get API key</span>
+      </button>
+      <button class="link danger" id="btn-clearkey" hidden>Remove key</button>
     </div>
+
     <label class="field">
       <span>Model</span>
       <input type="text" id="in-model" spellcheck="false" />
     </label>
+
     <div class="field">
-      <span>Accent</span>
+      <span>Theme Accent</span>
       <div class="swatches" id="swatches">
-        <button data-accent="lime" data-cursor="theme" aria-label="Lime"></button>
-        <button data-accent="cyan" data-cursor="theme" aria-label="Cyan"></button>
-        <button data-accent="violet" data-cursor="theme" aria-label="Violet"></button>
-        <button data-accent="coral" data-cursor="theme" aria-label="Coral"></button>
-        <button data-accent="pink" data-cursor="theme" aria-label="Pink"></button>
+        <button data-accent="crimson" data-cursor="theme" aria-label="Crimson Red" title="Crimson Red (Default)"></button>
+        <button data-accent="ruby" data-cursor="theme" aria-label="Blood Ruby" title="Blood Ruby"></button>
+        <button data-accent="scarlet" data-cursor="theme" aria-label="Scarlet Flame" title="Scarlet Flame"></button>
+        <button data-accent="amber" data-cursor="theme" aria-label="Cyber Amber" title="Cyber Amber"></button>
+        <button data-accent="cyan" data-cursor="theme" aria-label="Acid Cyan" title="Acid Cyan"></button>
       </div>
     </div>
+
     <label class="toggle">
       <input type="checkbox" id="in-verify" />
       <span class="box"></span>
-      <span>Re-scan automatically after fixing</span>
+      <span>Re-scan automatically after applying fixes</span>
     </label>
-    <p class="fine">When AI is on, a trimmed scan report (adapter names, IPs, ping and DNS results &mdash; no MAC addresses) is sent to the Anthropic API. The AI can only choose from B-Z&rsquo;s fixed list of fixes, and nothing runs until you press Apply.</p>
-    <button class="btn primary small" id="btn-save" data-cursor="save">Save</button>
+
+    <div class="fine-card">
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1.5l6 2.5v5c0 3.5-2.5 5.5-6 6.5-3.5-1-6-3-6-6.5V4l6-2.5z"/></svg>
+      <p class="fine">When AI is enabled, sanitized telemetry (adapter names, local IPs, ping and DNS results &mdash; no MAC addresses or personal data) is sent to Anthropic. The AI can only pick from B-Z's verified catalog of fixes, and nothing executes until you confirm.</p>
+    </div>
+
+    <button class="btn primary small" id="btn-save" data-cursor="save">Save Preferences</button>
   </aside>
 
   <div class="toast" id="toast" role="status"></div>
