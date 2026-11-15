@@ -3,6 +3,7 @@
   --bg-gradient: radial-gradient(circle at 50% 0%, #1a080c 0%, #060608 70%);
   --panel: #0a0a0f;
   --panel2: #101016;
+  --panel-hover: #14141c;
   --panel-glass: rgba(12, 12, 18, 0.75);
   --panel-border: rgba(255, 32, 78, 0.12);
   --line: #181822;
@@ -710,6 +711,7 @@ body[data-state="scanning"] .steps { display: flex; }
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  white-space: nowrap;
   transition: background 0.2s, color 0.2s, opacity 0.2s, box-shadow 0.3s, transform 0.2s var(--ease);
   will-change: transform;
 }

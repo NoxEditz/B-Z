@@ -565,6 +565,7 @@
 
       list.append(h('li', { class: 'fix spot rise', style: `--i:${k}` },
         cb,
+        h('i', { class: 'box' }),
         catIcon,
         h('div', { class: 't' },
           h('strong', null, meta.title),
